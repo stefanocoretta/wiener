@@ -1,0 +1,22 @@
+---
+title: "Wiener models"
+author: "Stefano Coretta"
+format: html
+editor: visual
+---
+
+## Set up
+
+```{r}
+#| label: setup
+
+library(tidyverse)
+library(brms)
+```
+
+```{r}
+#| label: read-data
+
+shallow <- read_csv("data/song2020/shallow.csv")
+```
+
