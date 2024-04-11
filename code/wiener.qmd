@@ -12,11 +12,96 @@ editor: visual
 
 library(tidyverse)
 library(brms)
+my_seed <- 52019
 ```
 
 ```{r}
 #| label: read-data
 
 shallow <- read_csv("data/song2020/shallow.csv")
+
+shallow_filt <- shallow |> 
+  filter(
+    Critical_Filler == "Critical",
+    RT > 0
+  )
 ```
 
+## Model
+
+```{r}
+wm_bf <- bf(
+  RT | dec(ACC) ~ Relation_type * Group + (Relation_type |p| ID),
+  bs ~ Group + (1 |p| ID),
+  ndt ~ Group + (1 |p| ID),
+  bias ~ Group + (1 |p| ID)
+)
+
+wm_bf <- bf(
+  RT | dec(ACC) ~ Relation_type * Group + (1 | ID),
+  bs ~ Group + (1 | ID),
+  ndt ~ Group,
+  bias ~ Group
+)
+
+wm_priors_d <- get_prior(
+  wm_bf,
+  family = wiener,
+  data = shallow_filt
+)
+```
+
+```{r}
+make_stancode(
+  wm_bf,
+  family = wiener(link = "log"),
+  data = shallow_filt
+)
+```
+
+```{r}
+wm <- brm(
+  wm_bf,
+  family = wiener,
+  data = shallow_filt,
+  file = "data/cache/wm",
+  seed = my_seed,
+  backend = "cmdstanr",
+  chain = 1
+)
+
+
+wm_2 <- brm(
+  wm_bf,
+  family = wiener(link = "log"),
+  data = shallow_filt,
+  file = "data/cache/wm_2",
+  seed = my_seed,
+  backend = "cmdstanr",
+  chain = 1
+)
+```
+
+## Paul's example
+
+```{r}
+library(diffIRT)
+data("rotation")
+
+bform_drift <- bf(  time | dec(resp) ~ rotate + (1 |p| person) + (1 |i| item),  bs ~ rotate + (1 |p| person) + (1 |i| item),  ndt ~ rotate + (1 |p| person) + (1 |i| item), bias = 0.5)
+
+chains <- 4
+inits_drift <- list(temp_ndt_Intercept = -3)
+inits_drift <- replicate(chains, inits_drift, simplify = FALSE)
+
+fit_drift1 <- brm(
+  bform_drift,
+  data = rotation,
+  family = brmsfamily("wiener", "log", link_bs = "log", link_ndt = "log"),
+  chains = chains,
+  cores = chains,
+  init = inits_drift,
+  init_r = 0.05,
+  control = list(adapt_delta = 0.99)
+)
+```
