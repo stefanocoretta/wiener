@@ -30,78 +30,156 @@ shallow_filt <- shallow |>
 ## Model
 
 ```{r}
-wm_bf <- bf(
+#| label: wm1-bf
+
+wm1_bf <- bf(
+  log(RT) | dec(ACC) ~ Relation_type * Group + (Relation_type |p| ID),
+  bs ~ Group + (1 |p| ID),
+  ndt ~ Group + (1 |p| ID),
+  bias ~ Group + (1 |p| ID)
+)
+
+wm1_priors_d <- get_prior(
+  wm1_bf,
+  family = wiener,
+  data = shallow_filt
+)
+```
+
+```{r}
+#| label: wm1-stan
+
+make_stancode(
+  wm1_bf,
+  family = wiener(),
+  data = shallow_filt
+)
+```
+
+```{r}
+#| label: wm1
+
+wm1 <- brm(
+  wm1_bf,
+  family = wiener(),
+  data = shallow_filt,
+  file = "data/cache/wm1",
+  seed = my_seed,
+  backend = "cmdstanr",
+  chain = 1
+)
+```
+
+```{r}
+#| label: wm1-summ
+wm1
+```
+
+```{r}
+#| label: wm1a-bf
+wm1a_bf <- bf(
   RT | dec(ACC) ~ Relation_type * Group + (Relation_type |p| ID),
   bs ~ Group + (1 |p| ID),
   ndt ~ Group + (1 |p| ID),
   bias ~ Group + (1 |p| ID)
 )
 
-wm_bf <- bf(
-  RT | dec(ACC) ~ Relation_type * Group + (1 | ID),
-  bs ~ Group + (1 | ID),
-  ndt ~ Group,
-  bias ~ Group
-)
-
-wm_priors_d <- get_prior(
-  wm_bf,
+wm1a_priors_d <- get_prior(
+  wm1a_bf,
   family = wiener,
   data = shallow_filt
 )
 ```
 
 ```{r}
+#| label: wm1a-stan
+
 make_stancode(
-  wm_bf,
-  family = wiener(link = "log"),
+  wm1a_bf,
+  family = wiener(),
   data = shallow_filt
 )
 ```
 
 ```{r}
-wm <- brm(
-  wm_bf,
-  family = wiener,
-  data = shallow_filt,
-  file = "data/cache/wm",
-  seed = my_seed,
-  backend = "cmdstanr",
-  chain = 1
-)
+#| label: wm1a
 
-
-wm_2 <- brm(
-  wm_bf,
+wm1a <- brm(
+  wm1a_bf,
   family = wiener(link = "log"),
   data = shallow_filt,
-  file = "data/cache/wm_2",
+  file = "data/cache/wm1a",
   seed = my_seed,
   backend = "cmdstanr",
-  chain = 1
+  chain = 1,
+  # With the following, it samples but terrible non-convergence
+  init = list(list(Intercept_ndt = -20, Intercept_bs = -20))
+)
+```
+
+
+## Model with indexing
+
+```{r}
+#| label: wm2-bf
+wm2_bf <- bf(
+  log(RT) | dec(ACC) ~ 0 + Relation_type:Group + (0 + Relation_type |p| ID),
+  bs ~ 0 + Group + (1 |p| ID),
+  ndt ~ 0 + Group + (1 |p| ID),
+  bias ~ 0 + Group + (1 |p| ID)
+)
+
+wm2_priors_d <- get_prior(
+  wm2_bf,
+  family = wiener,
+  data = shallow_filt
 )
 ```
 
 ## Paul's example
 
 ```{r}
-library(diffIRT)
-data("rotation")
+#| label: example
+#| eval: false
 
-bform_drift <- bf(  time | dec(resp) ~ rotate + (1 |p| person) + (1 |i| item),  bs ~ rotate + (1 |p| person) + (1 |i| item),  ndt ~ rotate + (1 |p| person) + (1 |i| item), bias = 0.5)
+data("rotation", package = "diffIRT")
+rotation <- rotation %>%
+  as_tibble() %>%
+  mutate(person = seq_len(n())) %>%
+  gather("key", "value", -person) %>%
+  extract("key", into = c("type", "item"), regex = "(.)\\[(.+)\\]") %>%
+  spread("type", "value") %>%
+  rename(time = T, resp = X) %>%
+  mutate(rotate = factor(case_when(item %in% c(2, 5, 8) ~ 50,
+    item %in% c(3, 6, 10) ~ 100, item %in% c(1, 4, 7, 9) ~ 150)),
+    item = as.numeric(item))
 
-chains <- 4
-inits_drift <- list(temp_ndt_Intercept = -3)
+# specify a 3-parameter drift diffusion model
+bform_drift1 <- bf(time | dec(resp) ~ rotate + (1 | p | person) +
+    (1 | i | item), bs ~ rotate + (1 | p | person) + (1 | i | item),
+  ndt ~ rotate + (1 | p | person) + (1 | i | item), bias = 0.5)
+
+# specify initial values to help the model start sampling diffusion models
+# require quite a bit of working memory and running multiple chains in parallel
+# may exceed memory capacity of some standard laptops for this reason, we run
+# only a single chain here but, in practice, running multiple chains is
+# recommended for increased estimation accuracy and better convergence
+# diagnostics
+chains <- 1
+inits_drift <- list(Intercept_ndt = -3)
 inits_drift <- replicate(chains, inits_drift, simplify = FALSE)
 
+# fit the model
 fit_drift1 <- brm(
-  bform_drift,
-  data = rotation,
-  family = brmsfamily("wiener", "log", link_bs = "log", link_ndt = "log"),
-  chains = chains,
-  cores = chains,
-  init = inits_drift,
-  init_r = 0.05,
-  control = list(adapt_delta = 0.99)
-)
+    bform_drift1,
+    data = rotation,
+    family = brmsfamily("wiener", "log", link_bs = "log", link_ndt = "log"),
+    chains = chains,
+    cores = chains,
+    init = inits_drift,
+    init_r = 0.05,
+    control = list(adapt_delta = 0.99),
+    seed = 1234,
+    file = "data/cache/fit_drift1"
+  )
 ```
