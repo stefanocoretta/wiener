@@ -117,7 +117,6 @@ wm1a <- brm(
 )
 ```
 
-
 ## Model with indexing
 
 ```{r}

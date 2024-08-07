@@ -1,6 +1,6 @@
 {
   "R": {
-    "Version": "4.3.3",
+    "Version": "4.4.0",
     "Repositories": [
       {
         "Name": "CRAN",
@@ -545,16 +545,6 @@
         "utils"
       ],
       "Hash": "99b79fcbd6c4d1ce087f5c5c758b384f"
-    },
-    "diffIRT": {
-      "Package": "diffIRT",
-      "Version": "1.5",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "statmod"
-      ],
-      "Hash": "a7cfde2e2722ab0e0846eb8c16c0bfaf"
     },
     "digest": {
       "Package": "digest",
@@ -1692,18 +1682,6 @@
         "stringr"
       ],
       "Hash": "3838071b66e0c566d55cc26bd6e27bf4"
-    },
-    "statmod": {
-      "Package": "statmod",
-      "Version": "1.5.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "graphics",
-        "stats"
-      ],
-      "Hash": "26e158d12052c279bdd4ba858b80fb1f"
     },
     "stringi": {
       "Package": "stringi",
